@@ -1,0 +1,45 @@
+name: Build VMloader APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Siapkan folder android (native overlay + accessibility)
+        run: bash tool/setup_android.sh
+
+      - run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VMloader-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Rilis APK (link download langsung)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk VMloader.apk
+          gh release create "v${{ github.run_number }}" VMloader.apk \
+            --title "VMloader build ${{ github.run_number }}" \
+            --notes "create by SpacemanBuilder" --latest
